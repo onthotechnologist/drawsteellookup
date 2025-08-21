@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <!-- build v3.6 — v3.5 content restored; dark‑mode search contrast fixed; SW versioned -->
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Draw Steel Lookup</title>
+  <link rel="manifest" href="manifest.webmanifest?v=3.6">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Draw Steel Lookup">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0a6">
+  <style>
+    :root{
+      --bg:#15171a; --panel:#1c1f23; --ink:#eaeef3; --muted:#9aa3ad; --rule:#2b3036; --accent:#0a6; --kbd:#2a2f35; --quote:#0f2018;
+      --safe-top: env(safe-area-inset-top, 0px);
+      color-scheme: light dark;
+    }
+    @media (prefers-color-scheme: light){
+      :root{ --bg:#f7f7f9; --panel:#ffffff; --ink:#1e1f22; --muted:#5c636a; --rule:#e3e5ea; --kbd:#f0f1f4; --quote:#eefbf4 }
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; padding-top:var(--safe-top)}
+    /* Small fixed strip so notch area matches header color */
+    .status-spacer{position:fixed;top:0;left:0;right:0;height:var(--safe-top);background:var(--panel);z-index:70}
+
+    /* App bar */
+    header.appbar{position:sticky;top:0;z-index:60;display:flex;gap:.6rem;align-items:center;padding:.55rem .7rem;padding-top:calc(.55rem + var(--safe-top));background:var(--panel);border-bottom:1px solid var(--rule);flex-wrap:wrap}
+    .title{font-weight:700}
+    .spacer{flex:1}
+    input#search{width:clamp(160px,40vw,520px);max-width:100%;border:1px solid var(--rule);border-radius:10px;padding:.5rem .6rem;background:#fafbfc;color:#111;caret-color:#111}
+    /* Focus ring for accessibility */
+    input#search:focus{outline:2px solid #4da3ff; outline-offset:2px}
+    /* Dark-mode contrast fix */
+    @media (prefers-color-scheme: dark){
+      input#search{background:#2a2f35;color:var(--ink);caret-color:var(--ink);}
+      input#search::placeholder{color:#8b95a0}
+    }
+    /* iOS/WebKit autofill & placeholder consistency */
+    input#search::placeholder{color:#6b7280}
+    input#search:-webkit-autofill,
+    input#search:-webkit-autofill:hover,
+    input#search:-webkit-autofill:focus{
+      -webkit-text-fill-color:#111;
+      transition:background-color 9999s ease-in-out 0s;
+    }
+    @media (prefers-color-scheme: dark){
+      input#search:-webkit-autofill,
+      input#search:-webkit-autofill:hover,
+      input#search:-webkit-autofill:focus{
+        -webkit-text-fill-color:var(--ink);
+      }
+    }
+
+    .btn{appearance:none;border:1px solid var(--rule);background:#fff;border-radius:10px;padding:.45rem .6rem;font:inherit;color:var(--ink);background:var(--panel)}
+    .btn:active{transform:translateY(1px)}
+    .hamburger{width:38px;height:38px;display:grid;place-items:center}
+    .hamburger span{width:18px;height:2px;background:currentColor;position:relative}
+    .hamburger span::before,.hamburger span::after{content:"";position:absolute;left:0;width:18px;height:2px;background:currentColor}
+    .hamburger span::before{top:-6px}.hamburger span::after{top:6px}
+
+    .layout{display:grid;grid-template-columns:1fr;min-height:calc(100% - 49px)}
+    aside.drawer{position:fixed;inset:0 auto 0 0;width:min(85vw,320px);background:var(--panel);border-right:1px solid var(--rule);transform:translateX(-100%);transition:.25s transform ease;z-index:80}
+    aside.drawer.open{transform:none}
+    .drawer-head{display:flex;align-items:center;gap:.6rem;padding:.65rem;border-bottom:1px solid var(--rule)}
+    .drawer-body{padding:.5rem .7rem;height:calc(100% - 49px - 49px);overflow:auto}
+    nav a{display:block;padding:.5rem;border-radius:8px;color:inherit;text-decoration:none}
+    nav a:hover{background:#22262b}
+    @media (prefers-color-scheme: light){ nav a:hover{background:#f0f2f6} }
+
+    /* Scrim to close the drawer by tapping anywhere right side */
+    .scrim{position:fixed;inset:0;display:none;background:rgba(0,0,0,.28);backdrop-filter:saturate(120%) blur(1px);z-index:75}
+    .scrim.show{display:block}
+
+    main{padding:.7rem;padding-top:calc(.7rem + var(--safe-top))}
+    section{background:var(--panel);border:1px solid var(--rule);border-radius:12px;padding:.7rem .8rem;margin:.7rem 0}
+    section h2{font-size:1rem;margin:.2rem 0 .4rem}
+    .pill{display:inline-block;border:1px solid var(--rule);border-radius:999px;padding:.1rem .5rem;color:var(--muted)}
+    details{border:1px dashed var(--rule);border-radius:10px;padding:.35rem .6rem;background:var(--panel)}
+    details[open]{background:var(--panel)}
+    details summary{cursor:pointer;font-weight:600}
+    table{width:100%;border-collapse:collapse}
+    th,td{border:1px solid var(--rule);padding:.35rem .45rem;vertical-align:top;background:var(--panel);color:var(--ink)}
+    th{background:#111318}
+    @media (prefers-color-scheme: light){ th{background:#f4f6fb} }
+    code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .quote{background:var(--quote);border-left:3px solid var(--accent);padding:.5rem .6rem;border:1px solid var(--rule);border-radius:8px;margin:.4rem 0}
+    .quote .ref{float:right;color:var(--muted);font-size:.9em}
+    .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:10px;background:#0a6;color:#fff;padding:.6rem .8rem;border-radius:10px;border:1px solid #095;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:99}
+    .toast button{margin-left:.6rem}
+    @media (max-width: 480px){
+      header.appbar{gap:.4rem; padding-left: max(.7rem, env(safe-area-inset-left, 0px)); padding-right: max(.7rem, env(safe-area-inset-right, 0px));}
+      header.appbar .spacer{display:none}
+      input#search{order:3; flex:1 1 100%; width:100%}
+      #fontMinus,#fontPlus,#installBtn{order:4}
+    }
+  </style>
+</head>
+<body>
+<div class="status-spacer" aria-hidden="true"></div>
+<header class="appbar">
+  <button class="btn hamburger" id="openNav" aria-label="Open menu"><span></span></button>
+  <div class="title">Draw Steel Lookup</div>
+  <div class="spacer"></div>
+  <input id="search" type="search" placeholder="Filter… (tap /)" aria-label="Search" />
+  <button class="btn" id="installBtn" hidden>Install</button>
+  <button class="btn" id="fontMinus" title="Smaller text">A−</button>
+  <button class="btn" id="fontPlus" title="Larger text">A+</button>
+</header>
+<div class="layout">
+  <aside class="drawer" id="drawer" aria-label="Sections">
+    <div class="drawer-head">
+      <strong>Contents</strong>
+      <div class="spacer"></div>
+      <button class="btn" id="closeNav" aria-label="Close menu">Close</button>
+    </div>
+    <div class="drawer-body">
+      <nav id="toc"></nav>
+      <hr>
+      <details>
+        <summary>Tips for mobile</summary>
+        <ul>
+          <li>Tap the right side of the screen to close the menu.</li>
+          <li>A−/A+ adjusts font size. Search filters content.</li>
+          <li>On iPhone: Share → Add to Home Screen. Android/Chrome: Install.</li>
+        </ul>
+      </details>
+    </div>
+  </aside>
+  <div id="scrim" class="scrim" aria-hidden="true"></div>
+  <main id="app">
+
+    <!-- 1. CONDITIONS (TABLE) -->
+    <section id="s1">
+      <h2>1. Conditions <span class="pill">p.77, 266, 278</span></h2>
+      <details open>
+        <summary>Quick lookup</summary>
+        <table>
+          <thead><tr><th>Condition</th><th>Effect (Summarized)</th><th>Ref</th></tr></thead>
+          <tbody>
+            <tr><td><b>Bleeding</b></td><td>Take <code>1d6 + level</code> damage when using a <code>main</code>/<code>triggered</code> action or a <code>Might</code>/<code>Agility</code> power roll.</td><td>p.77</td></tr>
+            <tr><td><b>Dazed</b></td><td>Only one of: <code>main</code> OR <code>maneuver</code> OR <code>move</code>. No triggered/free actions or free maneuvers.</td><td>p.77</td></tr>
+            <tr><td><b>Frightened</b></td><td><code>Bane</code> vs source; can’t willingly move closer; source gets <code>edge</code> vs you.</td><td>p.77</td></tr>
+            <tr><td><b>Grabbed</b></td><td><code>Speed 0</code>; bane on abilities not targeting the grabber/holder.</td><td>p.77</td></tr>
+            <tr><td><b>Prone</b></td><td>Your <code>strikes</code> take a bane; melee vs you gain an edge.</td><td>p.77</td></tr>
+            <tr><td><b>Restrained</b></td><td><code>Speed 0</code>; can’t <code>Stand Up</code>; can’t be forced moved.</td><td>p.77</td></tr>
+            <tr><td><b>Slowed</b></td><td><code>Speed = 2</code>.</td><td>p.77</td></tr>
+            <tr><td><b>Taunted</b></td><td><code>Double bane</code> on rolls not targeting the taunter.</td><td>p.77</td></tr>
+            <tr><td><b>Weakened</b></td><td><code>Bane</code> on all power rolls.</td><td>p.77</td></tr>
+            <tr><td><b>Dying</b></td><td>Stamina ≤ 0 but &gt; −Winded. Also <em>Bleeding</em>. Can’t <code>Catch Breath</code>. Death at −Winded.</td><td>p.278</td></tr>
+            <tr><td><b>Winded</b></td><td>Stamina ≤ half max.</td><td>p.278</td></tr>
+            <tr><td><b>Suffocating</b></td><td>Can’t breathe (see Underwater/Suffocating).</td><td>p.278</td></tr>
+            <tr><td><b>Surprised</b></td><td>No triggered/free triggered actions; ability rolls against you gain an <code>edge</code>.</td><td>p.266</td></tr>
+          </tbody>
+        </table>
+      </details>
+      <details>
+        <summary>Exact rulebook quotes + pages</summary>
+        <div class="quote mono"><span class="ref">p.77</span> Bleeding: “A condition that causes a creature to take 1d6 + level damage whenever they use a main action or triggered action, or make a power roll using Might or Agility.”</div>
+        <div class="quote mono"><span class="ref">p.77</span> Dazed: “Limits a creature to doing only one thing on their turn: use a main action, use a maneuver, or use a move action. A dazed creature also can’t use triggered actions, free triggered actions, or free maneuvers.”</div>
+        <div class="quote mono"><span class="ref">p.77</span> Frightened: “A condition that causes a creature to take a bane on ability rolls against the source of their fear. The creature can’t willingly move closer to the source of their fear, and that source gains an edge on ability rolls made against the creature.”</div>
+        <div class="quote mono"><span class="ref">p.77</span> Grabbed: “Reduces a creature’s speed to 0 and causes them to take a bane on abilities that don’t target the creature, object, or effect that has them grabbed.”</div>
+        <div class="quote mono"><span class="ref">p.77</span> Prone: “A condition that causes a creature to become flat on the ground. Strikes made by a prone creature take a bane, and melee abilities used against a prone creature gain an edge.”</div>
+        <div class="quote mono"><span class="ref">p.77</span> Restrained: “Reduces a creature’s speed to 0 and prevents them from using the Stand Up maneuver or being forced moved.”</div>
+        <div class="quote mono"><span class="ref">p.77</span> Slowed: “Reduces a creature’s speed to 2.”</div>
+        <div class="quote mono"><span class="ref">p.77</span> Taunted: “A condition that causes a creature to have a double bane on ability rolls that don’t target the creature or effect that taunted them.”</div>
+        <div class="quote mono"><span class="ref">p.77</span> Weakened: “A condition that causes a creature to take a bane on power rolls.”</div>
+        <div class="quote mono"><span class="ref">p.266</span> Surprised: “A creature who is surprised can’t take triggered actions or free triggered actions, and ability rolls against them gain an edge.”</div>
+        <div class="quote mono"><span class="ref">p.278</span> Dying: “When your Stamina is 0 or lower, you are dying. While dying, you can’t use the Catch Breath maneuver in combat. Additionally, you are bleeding… While your Stamina is lower than 0, if it reaches the negative of your winded value, you die.”</div>
+        <div class="quote mono"><span class="ref">p.278</span> Winded: “A state a creature enters when their Stamina is equal to or less than their winded value (half their Stamina maximum).”</div>
+        <div class="quote mono"><span class="ref">p.278</span> Suffocating: “A state that a creature who needs to breathe suffers if they aren’t able to breathe.”</div>
+      </details>
+    </section>
+
+    <!-- 2. MONTAGE TESTS (TABLE) -->
+    <section id="s2">
+      <h2>2. Montage Tests <span class="pill">p.261–263</span></h2>
+      <details open>
+        <summary>Round structure, limits, outcomes</summary>
+        <table>
+          <thead><tr><th>Element</th><th>Summary</th><th>Ref</th></tr></thead>
+          <tbody>
+            <tr><td><b>Flow</b></td><td>Director frames challenge; montage runs in <b>rounds</b>. Each round, every hero participates once: narrate and make a test.</td><td>p.261</td></tr>
+            <tr><td><b>Variety</b></td><td>A hero can’t use the <em>same skill</em> more than once.</td><td>p.262</td></tr>
+            <tr><td><b>Assisting</b></td><td>Assist uses a different relevant skill; your test tier sets ally’s bonus: T1 bane / T2 edge / T3 double edge.</td><td>p.258</td></tr>
+            <tr><td><b>Limited Rounds</b></td><td>Ends after <b>2 rounds</b> if no limit is reached.</td><td>p.262</td></tr>
+            <tr><td><b>Success/Failure Limits</b></td><td>
+              <table>
+                <thead><tr><th>Difficulty</th><th>Success Limit</th><th>Failure Limit</th></tr></thead>
+                <tbody>
+                  <tr><td>Easy</td><td>5</td><td>5</td></tr>
+                  <tr><td>Moderate</td><td>6</td><td>4</td></tr>
+                  <tr><td>Hard</td><td>7</td><td>3</td></tr>
+                </tbody>
+              </table>
+              <div class="pill">Scale both limits: −1 per hero fewer than five (min 2); +1 per hero beyond five.</div>
+            </td><td>p.262–263</td></tr>
+            <tr><td><b>Outcomes</b></td><td>Total Success (hit success limit) • Partial Success (time/fails hit & net ≥ +2 successes) • Total Failure (otherwise).</td><td>p.263</td></tr>
+          </tbody>
+        </table>
+      </details>
+      <details>
+        <summary>Exact rulebook quotes + pages</summary>
+        <div class="quote mono"><span class="ref">p.261</span> “Montage Test: Heroes making a series of different tests that represent them working together over time to accomplish a common goal. Each hero describes how they contribute with a different skill or approach, then makes a test.”</div>
+        <div class="quote mono"><span class="ref">p.262</span> “In a montage test, a hero can’t use the same skill more than once.”</div>
+        <div class="quote mono"><span class="ref">p.262</span> “A montage test is limited to two rounds. If neither the success limit nor the failure limit is reached by the end of the second round, the montage test ends.”</div>
+        <div class="quote mono"><span class="ref">p.262</span> “The heroes earn 1 Victory when they achieve total success on an easy or moderate montage test, and 2 Victories on a hard montage test.”</div>
+        <div class="quote mono"><span class="ref">p.263</span> “A montage test can have three different outcomes: • If the heroes hit the success limit before hitting the failure limit or before the time runs out for the test, they achieve total success. • If the heroes hit the failure limit or time runs out, and if they’ve achieved at least two more successes than failures, they achieve a partial success. • If the heroes hit the failure limit or time runs out, and if they don’t have at least two more successes than failures, they suffer total failure.”</div>
+      </details>
+    </section>
+
+    <!-- 3. GROUP TESTS -->
+    <section id="s3">
+      <h2>3. Group Tests <span class="pill">p.260</span></h2>
+      <details open>
+        <summary>Majority success check</summary>
+        <ul>
+          <li>Each participating hero rolls an individual test with an appropriate skill.</li>
+          <li><b>Result:</b> if <em>half or more</em> succeed, the group succeeds; otherwise it fails.</li>
+          <li>Failures may still cause setbacks at Director’s discretion.</li>
+        </ul>
+      </details>
+      <details>
+        <summary>Exact rulebook quote + page</summary>
+        <div class="quote mono"><span class="ref">p.260</span> “Group Test: Two or more creatures attempting to overcome a single, simple task together can make a group test. If half or more of the creatures succeed on their individual test, the group test succeeds. Otherwise the group test fails.”</div>
+      </details>
+    </section>
+
+    <!-- 4. EDGES & BANES (NO high ground/cover/etc here) -->
+    <section id="s4">
+      <h2>4. Edges &amp; Banes <span class="pill">p.5</span></h2>
+      <details open>
+        <summary>How they modify rolls</summary>
+        <table>
+          <thead><tr><th>Type</th><th>Effect</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Edge</td><td><code>+2</code> to a power roll</td><td rowspan="2">Edges &amp; Banes cancel 1:1. Two+ of one side (with none of the other) becomes <em>Double</em> (tier shift).</td></tr>
+            <tr><td>Bane</td><td><code>−2</code> to a power roll</td></tr>
+            <tr><td>Double Edge</td><td>no numeric bonus; <b>+1 tier</b> (max T3)</td><td>Double Edge + one Bane → roll with <em>one Edge</em>.</td></tr>
+            <tr><td>Double Bane</td><td>no numeric penalty; <b>−1 tier</b> (min T1)</td><td>Double Bane + one Edge → roll with <em>one Bane</em>.</td></tr>
+          </tbody>
+        </table>
+      </details>
+      <details>
+        <summary>Exact rulebook quotes + pages</summary>
+        <div class="quote mono"><span class="ref">p.5</span> Edge: “A situational advantage that grants a creature a +2 bonus to a power roll.”</div>
+        <div class="quote mono"><span class="ref">p.5</span> Bane: “A situational disadvantage that gives a creature a −2 penalty to a power roll.”</div>
+        <div class="quote mono"><span class="ref">p.5</span> Double Edge/Bane: “…automatically increases/decreases the tier outcome of the roll by one tier.”</div>
+      </details>
+    </section>
+
+    <!-- 5. POWER ROLL OUTCOMES -->
+    <section id="s5">
+      <h2>5. Power Roll Outcomes <span class="pill">p.4–5, 75–76</span></h2>
+      <details open>
+        <summary>Tiers, crits, and multi-target</summary>
+        <table>
+          <thead><tr><th>Tier</th><th>Total</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>T1</td><td>≤ 11</td><td>Worst tier</td></tr>
+            <tr><td>T2</td><td>12–16</td><td>Average tier</td></tr>
+            <tr><td>T3</td><td>≥ 17</td><td>Best tier</td></tr>
+          </tbody>
+        </table>
+        <ul>
+          <li><b>Natural 19/20:</b> always T3. If it’s a <em>main‑action ability roll</em>, it’s a <b>critical hit</b> → gain an extra main action.</li>
+          <li><b>Downgrade:</b> after rolling, you may choose a lower‑tier outcome; crits keep the extra action.</li>
+          <li><b>Multi‑target:</b> one roll for all targets; apply per‑target edges/banes to adjust effective tier per target.</li>
+        </ul>
+      </details>
+      <details>
+        <summary>Exact rulebook quotes + pages</summary>
+        <div class="quote mono"><span class="ref">p.4–5</span> “Tier 1 … total is 11 or lower.” / “Tier 2 … 12 to 16.” / “Tier 3 … 17 or higher.”</div>
+        <div class="quote mono"><span class="ref">p.5</span> “Natural 19 or 20 … always achieves a tier 3 outcome … On an ability roll with an ability that uses a main action, it is also a critical hit.”</div>
+        <div class="quote mono"><span class="ref">p.75</span> “Critical Hit … gains an additional main action … ability roll made as part of a maneuver can’t score a critical hit.”</div>
+        <div class="quote mono"><span class="ref">p.76</span> Roll Against Multiple Creatures: “When an ability has multiple targets (whether a strike with more than one target or an area effect), you make one power roll and apply the total to all targets. If you have edges or banes against some but not all of your targets, you might apply a different tier outcome to individual targets.”</div>
+      </details>
+    </section>
+
+    <!-- 6. COMBAT PARTICULARITIES -->
+    <section id="s6">
+      <h2>6. Combat Particularities <span class="pill">p.269–279</span></h2>
+      <details open>
+        <summary>Falling, forced movement, terrain, position, support</summary>
+        <ul>
+          <li><b>Falling</b> (p.270): Fall ≥2 squares → <code>2 dmg/sq</code> (max 50) & land <em>prone</em>; reduce height by <em>Agility</em>; into liquid (≥1 sq deep) −4 effective squares.</li>
+          <li><b>Fall onto a creature</b> (p.270): Both take same falling damage; faller lands prone in nearest unoccupied space; if faller’s size &gt; target’s Might → target is knocked <em>prone</em>.</li>
+          <li><b>Vertical forced move</b> (p.272): If left midair & can’t fly → fall. Against flying targets, forced move is vertical.</li>
+          <li><b>Slam: creature→creature</b> (p.272): Movement ends; both take <code>1 × remaining squares</code> damage.</li>
+          <li><b>Slam: creature→object</b> (p.272): Into unbroken object (size ≥ target): <code>2 + 1 × remaining</code>; downward also apply <em>falling</em> (Agility 0).</li>
+          <li><b>High Ground</b> (p.270): Fully above and on ground → gain an <b>edge</b> on the power roll (climb caveat).</li>
+          <li><b>Difficult terrain</b> (p.270): +1 square to enter; can’t <em>shift</em> into/out of; can’t <em>jump out</em>.</li>
+          <li><b>Damaging terrain</b> (p.270): Deals listed damage; can’t <em>shift</em> into/out of; can’t <em>jump out</em>.</li>
+          <li><b>Cover</b> (p.276): Damage‑dealing abilities vs target take a <em>bane</em>.</li>
+          <li><b>Concealment</b> (p.276–277): Strikes vs target take a <em>bane</em>.</li>
+          <li><b>Flanking</b> (p.276): Edge on melee strikes when adjacent on opposite sides.</li>
+          <li><b>Aid Attack</b> (p.273): Choose adjacent enemy → next ally’s ability roll vs it (before your next turn) gains an <b>edge</b>.</li>
+          <li><b>Catch Breath</b> (p.273, 278): Spend a Recovery → regain Stamina = recovery value; a dying creature can’t use this in combat.</li>
+        </ul>
+      </details>
+      <details>
+        <summary>Exact rulebook quotes + pages</summary>
+        <div class="quote mono"><span class="ref">p.270</span> Falling: “When a creature falls 2 or more squares and lands on the ground, they take 2 damage for each square they fall (to a maximum of 50 damage) and land prone… Falling into liquid that is 1 square or more deep reduces the effective height of a fall by 4 squares…”</div>
+        <div class="quote mono"><span class="ref">p.270</span> Falling onto another creature: “A creature who falls and lands on another creature causes that creature to take the same damage from the fall… If the falling creature’s size is greater than the Might score of the creature they land on, that creature is knocked prone.”</div>
+        <div class="quote mono"><span class="ref">p.272</span> Vertical forced movement: “If a creature who can’t fly is left in midair at the end of a vertical forced move, they fall… Forced movement made against a creature who is flying is always a vertical forced move…”</div>
+        <div class="quote mono"><span class="ref">p.272</span> Slam into creatures: “When you force move a creature into another creature, the movement ends and both creatures take 1 damage for each square remaining in the first creature’s forced movement…”</div>
+        <div class="quote mono"><span class="ref">p.272</span> Slam into objects: “When a creature force moves a target into a stationary object that is the target’s size or larger and the object doesn’t break, the movement ends and the target takes 2 damage plus 1 damage for each square remaining… If you force move a creature downward… they also take falling damage as if… Agility score was 0.”</div>
+        <div class="quote mono"><span class="ref">p.270</span> Difficult Terrain: “An area of obstacles that are difficult to move through. It costs 1 additional square of movement to enter a square of difficult terrain. A creature can’t shift into or out of difficult terrain, and can’t jump out of difficult terrain.”</div>
+        <div class="quote mono"><span class="ref">p.270</span> Damaging Terrain: “An area of obstacles that deal damage to creatures who are in the area or move through it. A creature can’t shift into or out of damaging terrain, and can’t jump out of damaging terrain.”</div>
+        <div class="quote mono"><span class="ref">p.270</span> High Ground: “Whenever a creature uses an ability to target a creature or object while standing on the ground and occupying a space that is fully above the target’s space, they gain an edge on the power roll …”</div>
+        <div class="quote mono"><span class="ref">p.276</span> Flanking: “When you and one or more allies are adjacent to the same enemy and on opposite sides of the enemy, you are flanking that enemy. While flanking an enemy, you gain an edge on melee strikes against them. … You must have line of effect to the enemy and be able to take triggered actions to gain or grant the flanking benefit.”</div>
+        <div class="quote mono"><span class="ref">p.276</span> Cover: “When you have line of effect to a creature or object but that target has at least half their form blocked by a solid object such as a tree, wall, or overturned table, the target has cover. You take a bane on damage‑dealing abilities used against creatures or objects that have cover from you.”</div>
+        <div class="quote mono"><span class="ref">p.276–277</span> Concealment: “Darkness, fog, invisibility magic, and any other effect that fully obscures a creature or object but doesn’t protect their physical form grants that creature or object concealment. Even if you have line of effect to such a target, a creature or object has concealment from you if you can’t see or otherwise observe them. You can target a creature or object with concealment using a strike, provided they aren’t hidden. However, strikes against such targets take a bane.”</div>
+        <div class="quote mono"><span class="ref">p.273</span> Catch Breath: “A creature who uses the Catch Breath maneuver spends a Recovery and regains Stamina equal to their recovery value.”</div>
+        <div class="quote mono"><span class="ref">p.278</span> Dying and Death: “When your Stamina is 0 or lower, you are dying. While dying, you can’t use the Catch Breath maneuver in combat… While your Stamina is lower than 0, if it reaches the negative of your winded value, you die.”</div>
+      </details>
+    </section>
+
+    <!-- 7. HELPING OTHER CREATURES -->
+    <section id="s7">
+      <h2>7. Helping Other Creatures <span class="pill">p.258, 273</span></h2>
+      <details open>
+        <summary>Assist &amp; Make/Assist Test</summary>
+        <ul>
+          <li><b>Assist a Test:</b> Use a relevant skill the actor isn’t using; make a test. Your <b>outcome</b> sets their modifier: <span class="pill">T1 bane</span> • <span class="pill">T2 edge</span> • <span class="pill">T3 double edge</span>.</li>
+          <li><b>Make or Assist a Test (maneuver):</b> Use a maneuver to make a test or assist another creature’s test during combat.</li>
+        </ul>
+      </details>
+      <details>
+        <summary>Exact rulebook quotes + pages</summary>
+        <div class="quote mono"><span class="ref">p.258</span> “You can attempt to assist another creature with a test they make, provided you have a skill that applies to the test, the other creature isn’t using that same skill on the test, and you can describe how your character helps to the Director’s satisfaction… When you attempt to assist another creature, make a test using the skill you choose, and using a characteristic chosen by the Director… The outcome of that test determines the bonus applied to the test you’re assisting: • You get in the way or make things worse. The creature takes a bane on their test. • Your help grants the other creature an edge on their test. • Your help gives the other creature a double edge on their test.”</div>
+        <div class="quote mono"><span class="ref">p.273</span> “A creature can use a maneuver to make a test or to assist another creature’s test.”</div>
+      </details>
+    </section>
+
+    <!-- 8. DIFFICULTIES OF TESTS -->
+    <!-- REPLACE YOUR EXISTING <section id="s8"> WITH THIS VERSION -->
+<section id="s8">
+  <h2>8. Difficulties of Tests <span class="pill">p.250–253</span></h2>
+  <details open>
+    <summary>Test Difficulty Outcomes (quick lookup)</summary>
+    <table>
+      <thead>
+        <tr>
+          <th>Power Roll</th>
+          <th>Easy Test Outcomes</th>
+          <th>Medium Test Outcomes</th>
+          <th>Hard Test Outcomes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Less than 11</td>
+          <td>Success with a consequence</td>
+          <td>Failure</td>
+          <td>Failure with a consequence</td>
+        </tr>
+        <tr>
+          <td>12–16</td>
+          <td>Success</td>
+          <td>Success with a consequence</td>
+          <td>Failure</td>
+        </tr>
+        <tr>
+          <td>17+</td>
+          <td>Success with a reward</td>
+          <td>Success</td>
+          <td>Success</td>
+        </tr>
+        <tr>
+          <td>Natural 19 or 20</td>
+          <td>Success with a reward</td>
+          <td>Success with a reward</td>
+          <td>Success with a reward</td>
+        </tr>
+      </tbody>
+    </table>
+  </details>
+  <details>
+    <summary>Exact rulebook quotes + pages</summary>
+    <!-- Keep your existing quotes here or update as needed; they were present in v3.6. -->
+    <div class="quote mono"><span class="ref">p.253</span> Opposed test: “The test totals are compared, and the higher total succeeds while the lower fails.”</div>
+    <div class="quote mono"><span class="ref">p.250</span> “If success is assured or failure would not be interesting, don’t roll—just narrate the result.”</div>
+  </details>
+</section>
+
+
+    <!-- 9. COMBAT FLOW & STRUCTURE -->
+    <section id="s9">
+      <h2>9. Combat Flow &amp; Structure <span class="pill">p.265–268, 275</span></h2>
+      <details open>
+        <summary>Round/turn economy &amp; core triggers</summary>
+        <ul>
+          <li><b>Round</b> (p.265): each creature takes a turn.</li>
+          <li><b>Surprised</b> (p.266): no triggered/free triggered actions; ability rolls vs them gain an <em>edge</em>.</li>
+          <li><b>Your turn</b> (p.267): <b>1 main</b> + <b>1 maneuver</b> + <b>1 move</b>; any order; main can convert to maneuver or move; split movement.</li>
+          <li><b>Triggered actions</b> (p.267): 1/round; <em>free triggered</em> don’t count toward that limit.</li>
+          <li><b>Free maneuvers</b> (p.267): simple on‑turn tasks; many allowed.</li>
+          <li><b>Shift</b> (p.268): move 1 square without provoking; can’t shift into/out of difficult or damaging terrain.</li>
+          <li><b>Opportunity attack</b> (p.275): leaving adjacency without shifting/teleporting → melee free strike.</li>
+        </ul>
+      </details>
+      <details>
+        <summary>Exact rulebook quotes + pages</summary>
+        <div class="quote mono"><span class="ref">p.266</span> “A creature who is surprised can’t take triggered actions or free triggered actions, and ability rolls against them gain an edge.”</div>
+        <div class="quote mono"><span class="ref">p.267</span> “Each creature in combat… gets to take a main action, a maneuver, and a move action on their turn… You can also turn your main action into a move action or a maneuver…”</div>
+        <div class="quote mono"><span class="ref">p.267</span> “You can use one triggered action per round… A free triggered action… doesn’t count against your limit…”</div>
+        <div class="quote mono"><span class="ref">p.267</span> “Once all creatures on both sides of a battle have acted, the combat round ends… Director‑controlled creatures act in groups…”</div>
+        <div class="quote mono"><span class="ref">p.275</span> “When an adjacent enemy willingly moves away… the creature can make a melee free strike as an opportunity attack…”</div>
+      </details>
+    </section>
+
+  </main>
+</div>
+<script>
+(function(){
+  // Register service worker for offline (v3.6) with update toast
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js?v=3.6').then(reg => {
+      reg.addEventListener('updatefound', () => {
+        const sw = reg.installing;
+        sw?.addEventListener('statechange', () => {
+          if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+            const t = document.createElement('div');
+            t.className = 'toast';
+            t.innerHTML = 'Update available. <button>Reload</button>';
+            t.querySelector('button').onclick = () => location.reload();
+            document.body.appendChild(t);
+          }
+        });
+      });
+    });
+  }
+
+  // Drawer with scrim and right-edge close
+  const drawer=document.getElementById('drawer');
+  const scrim=document.getElementById('scrim');
+  const openNavBtn=document.getElementById('openNav');
+  const closeNavBtn=document.getElementById('closeNav');
+  function openDrawer(){ drawer.classList.add('open'); scrim.classList.add('show'); }
+  function closeDrawer(){ drawer.classList.remove('open'); scrim.classList.remove('show'); }
+  openNavBtn.onclick=openDrawer; closeNavBtn.onclick=closeDrawer; scrim.onclick=closeDrawer;
+  document.addEventListener('keydown',(e)=>{ if(e.key==='Escape') closeDrawer(); });
+  // Close after choosing a TOC link
+  document.addEventListener('click',(e)=>{ if(e.target.closest('#toc a')) closeDrawer(); }, true);
+  // Also close if user taps the rightmost 20% of the screen
+  document.addEventListener('click',(e)=>{ const vw=Math.max(document.documentElement.clientWidth||0,window.innerWidth||0); if(!drawer.classList.contains('open')) return; if(e.clientX>vw*0.8) closeDrawer(); }, true);
+
+  // Build TOC
+  const sections=[...document.querySelectorAll('main section[id]')];
+  const toc=document.getElementById('toc');
+  toc.innerHTML=sections.map(s=>`<a href="#${s.id}">${s.querySelector('h2')?.textContent||s.id}</a>`).join('');
+
+  // Search filter & keyboard shortcut
+  const search=document.getElementById('search');
+  search.addEventListener('keydown', e=>{ if(e.key==='/'){ e.preventDefault(); search.select(); } });
+  search.addEventListener('input', ()=>{
+    const q=search.value.trim().toLowerCase();
+    sections.forEach(s=>{ const t=(s.textContent||'').toLowerCase(); s.style.display=q && !t.includes(q)?'none':''; });
+  });
+
+  // Font size controls
+  const plus=document.getElementById('fontPlus'), minus=document.getElementById('fontMinus');
+  function setFS(v){ document.body.style.fontSize=v+'px'; localStorage.setItem('fs', v); }
+  const startFS=Number(localStorage.getItem('fs')||15); setFS(startFS);
+  plus.onclick=()=> setFS(Math.min(20, Number(getComputedStyle(document.body).fontSize.replace('px',''))+1));
+  minus.onclick=()=> setFS(Math.max(12, Number(getComputedStyle(document.body).fontSize.replace('px',''))-1));
+
+  // Android install prompt
+  let deferred=null; const installBtn=document.getElementById('installBtn');
+  window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferred=e; installBtn.hidden=false; });
+  installBtn.addEventListener('click', async ()=>{ if(!deferred) return; deferred.prompt(); try{ await deferred.userChoice; } finally { deferred=null; installBtn.hidden=true; } });
+})();
+</script>
+</body>
+</html>
